@@ -157,9 +157,16 @@ if verbose
 end
 cfg = config();
 
+if isequal(skipOptimizedSubmaps, false) && isfield(cfg, 'cbee') && isfield(cfg.cbee, 'options') ...
+        && isfield(cfg.cbee.options, 'skip_optimized_submaps') && ~isempty(cfg.cbee.options.skip_optimized_submaps)
+    skipOptimizedSubmaps = logical(cfg.cbee.options.skip_optimized_submaps);
+    skip_optimized_submaps = skipOptimizedSubmaps;
+end
+
 % 强制覆盖配置选项（根据输入参数）
 if skipOptimizedSubmaps
     cfg.cbee.options.generate_optimized_submaps = false;
+    cfg.cbee.options.skip_optimized_submaps = true;
     if verbose
         fprintf('已禁用优化子地图生成\n');
     end
@@ -180,7 +187,26 @@ end
 % 构建关键文件路径（使用层次化配置）
 pcd_folder = cfg.cbee.paths.gt_pcd_dir;
 original_poses_file = cfg.cbee.paths.poses_original;
-optimized_poses_file = cfg.cbee.paths.poses_optimized;
+
+valid_pose_modes = ["optimized","corrupted"];
+pose_mode = 'optimized';
+if isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'submap_pose_mode') && ~isempty(cfg.cbee.options.submap_pose_mode)
+    pose_mode_candidate = lower(strtrim(string(cfg.cbee.options.submap_pose_mode)));
+    pose_mode_candidate = pose_mode_candidate(1);
+    if ~any(pose_mode_candidate == valid_pose_modes)
+        error('cfg.cbee.options.submap_pose_mode 必须为 ''optimized'' 或 ''corrupted''');
+    end
+    pose_mode = char(pose_mode_candidate);
+end
+selected_pose_field = ['poses_', pose_mode];
+target_poses_file = '';
+if isfield(cfg.cbee.paths, selected_pose_field)
+    target_poses_file = cfg.cbee.paths.(selected_pose_field);
+end
+pose_mode_label = '优化';
+if strcmp(pose_mode, 'corrupted')
+    pose_mode_label = '扰动';
+end
 
 % 条件化存在性检查
 pcd_folder_exists = exist(pcd_folder, 'dir') == 7;
@@ -194,17 +220,21 @@ if need_poses
     if ~isfile(original_poses_file)
         error('未找到原始位姿文件: %s', original_poses_file);
     end
-    if ~isfile(optimized_poses_file)
-        error('未找到优化位姿文件: %s', optimized_poses_file);
+    if isempty(target_poses_file)
+        error('cfg.cbee.paths.%s 未配置', selected_pose_field);
+    end
+    if ~isfile(target_poses_file)
+        error('未找到%s位姿文件: %s', pose_mode_label, target_poses_file);
     end
 end
 
 if verbose
     fprintf('检测到的输入:\n');
     fprintf('  子地图目录: %s\n', pcd_folder);
+    fprintf('  位姿模式: %s\n', pose_mode);
     if need_poses
         fprintf('  原始位姿: %s\n', original_poses_file);
-        fprintf('  优化位姿: %s\n', optimized_poses_file);
+        fprintf('  目标位姿(%s): %s\n', pose_mode, target_poses_file);
     end
 end
 
@@ -293,12 +323,14 @@ if verbose
         actualUseParallel, numWorkersText, randSeedText);
     if isfield(cfg.cbee, 'options')
         go = 0; so = 0; sc = 0; lo = 0;
+        sk = skipOptimizedSubmaps;
         if isfield(cfg.cbee.options,'generate_optimized_submaps'); go = cfg.cbee.options.generate_optimized_submaps; end
+        if isfield(cfg.cbee.options,'skip_optimized_submaps');     sk = cfg.cbee.options.skip_optimized_submaps; end
         if isfield(cfg.cbee.options,'save_optimized_submaps');     so = cfg.cbee.options.save_optimized_submaps;     end
         if isfield(cfg.cbee.options,'save_CBEE_data_results');     sc = cfg.cbee.options.save_CBEE_data_results;     end
         if isfield(cfg.cbee.options,'load_only');                   lo = cfg.cbee.options.load_only;                  end
-        fprintf('  options: generate_optimized_submaps=%d, save_optimized_submaps=%d, save_CBEE_data_results=%d, load_only=%d\n', ...
-            go, so, sc, lo);
+        fprintf('  options: generate_optimized_submaps=%d, skip_optimized_submaps=%d, save_optimized_submaps=%d, save_CBEE_data_results=%d, load_only=%d, submap_pose_mode=%s\n', ...
+            go, sk, so, sc, lo, pose_mode);
     end
 end
 
@@ -313,27 +345,17 @@ if isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'generate_optimized_s
             fprintf('\n[Submaps] 生成优化子地图...\n');
         end
         % 选择输出目录：根据是否持久化决定输出到正式目录或临时目录
-    target_submaps_dir = cfg.cbee.paths.output_submaps_dir;
-    save_to_disk = (isfield(cfg.cbee.options,'save_optimized_submaps') && cfg.cbee.options.save_optimized_submaps);
+        target_submaps_dir = cfg.cbee.paths.output_submaps_dir;
+        save_to_disk = (isfield(cfg.cbee.options,'save_optimized_submaps') && cfg.cbee.options.save_optimized_submaps);
         if ~save_to_disk
             used_temp_submaps_dir = true;
         end
-    
-    % 计算经过SLAM优化后的误差
-    % opt_pcd_dir = generateOptimizedSubmaps(cfg.cbee.paths.gt_pcd_dir, ...
-    %                                         cfg.cbee.paths.poses_original, ...
-    %                                         cfg.cbee.paths.poses_optimized, ...
-    %                                         target_submaps_dir, ...
-    %                                         'UseParallel',actualUseParallel, ...
-    %                                         'Verbose', verbose, ...
-    %                                         'Verify', true, ...
-    %                                         'cfg', cfg, ...
-    %                                         'SaveToDisk', save_to_disk);
-
-    % 计算经过SLAM优化前的误差
-    opt_pcd_dir = generateOptimizedSubmaps(cfg.cbee.paths.gt_pcd_dir, ...
+        if verbose
+            fprintf('[Submaps] 使用位姿模式: %s\n', pose_mode);
+        end
+        opt_pcd_dir = generateOptimizedSubmaps(cfg.cbee.paths.gt_pcd_dir, ...
                                             cfg.cbee.paths.poses_original, ...
-                                            cfg.cbee.paths.poses_corrupted, ...
+                                            target_poses_file, ...
                                             target_submaps_dir, ...
                                             'UseParallel',actualUseParallel, ...
                                             'Verbose', verbose, ...
@@ -460,6 +482,7 @@ if (isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'save_CBEE_data_resu
 
     fig = figure('Color', 'w', 'Units','centimeters', 'Position', [2, 2, fig_w_cm, fig_h_cm], ...
                  'Name','CBEE Error Map', 'NumberTitle','off');
+    
     % 使用物理坐标范围绘制，并将Y轴正向
     x_range = [grid_meta.x_min, grid_meta.x_min + grid_meta.grid_w * grid_meta.cell_size_xy];
     y_range = [grid_meta.y_min, grid_meta.y_min + grid_meta.grid_h * grid_meta.cell_size_xy];
@@ -471,8 +494,13 @@ if (isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'save_CBEE_data_resu
     else
         colormap(parula);
     end
-    cb = colorbar; cb.Label.String = 'Consistency Error';
+    cb = colorbar; cb.Label.String = 'CBEE (m)';
     cb.Label.FontSize = cb_fs; cb.Label.FontName = gv.font_name;
+
+    % === 手操微调布局 === [左边距 底边距 宽度 高度]
+    % 紧凑布局优化：为colorbar预留空间 
+    set(gca, 'Position', [0.197 0.15 0.645 0.75]);  % 坐标轴主图参数
+    set(cb, 'Position', [0.845 0.25 0.02 0.53]);   % colorbar参数
     % 不绘制标题，避免信息冗余（RMS写入文件名）
 
     % 将无效格置为透明
@@ -483,6 +511,7 @@ if (isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'save_CBEE_data_resu
     set(gca, 'FontName', gv.font_name, 'FontSize', axis_fs);
     xlabel('X (m)', 'FontName', gv.font_name, 'FontSize', axis_fs);
     ylabel('Y (m)', 'FontName', gv.font_name, 'FontSize', axis_fs);
+    box('off');  % 不显示坐标轴外框
 
     % 终端输出统计信息（替代图内文本框）
     fprintf('\n[CBEE] 热力图统计数据\n');
@@ -541,6 +570,10 @@ if (isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'save_CBEE_data_resu
     cb_elev = colorbar; cb_elev.Label.String = 'Elevation (m)';
     cb_elev.Label.FontSize = cb_fs; cb_elev.Label.FontName = gv.font_name;
     
+    % === 手操微调布局 === [左边距 底边距 宽度 高度]
+    set(gca, 'Position', [0.197 0.15 0.6 0.75]);     % 坐标轴主图参数
+    set(cb_elev, 'Position', [0.81 0.27 0.02 0.5]); % colorbar参数
+    
     % 将无效格置为透明
     alpha_data_elev = ~isnan(map_grid);
     set(himg_elev, 'AlphaData', alpha_data_elev);
@@ -549,6 +582,7 @@ if (isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'save_CBEE_data_resu
     set(gca, 'FontName', gv.font_name, 'FontSize', axis_fs);
     xlabel('X (m)', 'FontName', gv.font_name, 'FontSize', axis_fs);
     ylabel('Y (m)', 'FontName', gv.font_name, 'FontSize', axis_fs);
+    box('off');  % 不显示坐标轴外框
     
     % 终端输出高程统计信息
     valid_elevation_data = map_grid(~isnan(map_grid));

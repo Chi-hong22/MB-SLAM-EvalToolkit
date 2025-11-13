@@ -18,7 +18,7 @@
 
 - **子地图目录**: 包含`.pcd`或`.pdc`格式的点云文件（文件名格式：`submap_#_frame.pcd`）
 - **原始轨迹**: `poses_original.txt`（TUM格式）
-- **优化轨迹**: `poses_optimized.txt`（TUM格式）
+- **目标轨迹**: `poses_optimized.txt` 或 `poses_corrupted.txt`（TUM格式，通过`cfg.cbee.options.submap_pose_mode`参数控制）
 
 **输出产物：**
 
@@ -53,12 +53,12 @@ CBEE评估遵循以下六步工作流程：
    - 确保所有子图在同一全局坐标系下进行比较 *(`loadAllSubmaps()` 参数 `TransformToGlobal=true`)*
 
 3. **栅格化与邻域聚合** *→ 实现函数: `buildCbeeErrorGrid()`*
-   - 将全局点云投影到统一的XY栅格（默认0.5m×0.5m） *(`buildCbeeErrorGrid()` 栅格投影部分)*
+   - 将全局点云投影到统一的XY栅格（默认1.0m×1.0m） *(`buildCbeeErrorGrid()` 栅格投影部分)*
    - 对每个格子收集其3×3邻域内所有子图的点云数据 *(`buildCbeeErrorGrid()` 邻域聚合部分)*
    - 为后续一致性计算准备邻域数据集
 
 4. **一致性误差计算** *→ 实现函数: `buildCbeeErrorGrid()`*
-   - 对每个格子进行多次蒙特卡洛采样（默认10次） *(`buildCbeeErrorGrid()` 采样循环)*
+   - 对每个格子进行多次蒙特卡洛采样（默认5次） *(`buildCbeeErrorGrid()` 采样循环)*
    - 计算采样点在其他子图邻域中的最近邻距离 *(`knnsearch()` 或 `pdist2()` 调用)*
    - 取最坏情况（最大距离）并平均，得到该格子的一致性误差
 
@@ -110,10 +110,11 @@ measurements = loadAllSubmaps(pcd_folder, varargin)
 ```matlab
 [value_grid, overlap_mask, grid_meta] = buildCbeeErrorGrid(measurements, gridParams)
 % 关键参数:
-%   gridParams.cell_size_xy - 栅格大小 (建议: 0.5-2.0米)
-%   gridParams.neighborhood_size - 邻域尺寸 (建议: 3或5)
-%   gridParams.nbr_averages - 采样次数 (建议: 10)
-%   gridParams.min_points_per_cell - 最小点数阈值 (建议: 3)
+%   gridParams.cell_size_xy - 栅格大小 (建议: 0.5-2.0米, 默认: 1.0)
+%   gridParams.neighborhood_size - 邻域尺寸 (建议: 3或5, 默认: 3)
+%   gridParams.nbr_averages - 采样次数 (建议: 5-20, 默认: 5)
+%   gridParams.min_points_per_cell - 最小点数阈值 (建议: 3-10, 默认: 3)
+%   gridParams.distance_method - 距离计算方法 ('bruteforce' | 'kdtree', 默认: 'bruteforce')
 ```
 
 #### `computeRmsConsistencyError()` - 统计分析模块
@@ -309,8 +310,8 @@ $$\text{RMS} = \sqrt{\frac{1}{|\Omega|} \sum_{(i,j) \in \Omega} \text{value}(i,j
 #### 栅格参数
 ```matlab
 % cell_size_xy: 栅格边长 (米)
-%   - 取值范围: 0.2 - 2.0
-%   - 默认值: 0.5
+%   - 取值范围: 0.5 - 2.0
+%   - 默认值: 1.0
 %   - 调节原则: 
 %     * 太小 → 计算量大，可能噪声敏感
 %     * 太大 → 空间分辨率低，细节丢失
@@ -332,11 +333,11 @@ $$\text{RMS} = \sqrt{\frac{1}{|\Omega|} \sum_{(i,j) \in \Omega} \text{value}(i,j
 ```matlab
 % nbr_averages: 蒙特卡洛采样次数
 %   - 取值范围: 5 - 50
-%   - 默认值: 10
+%   - 默认值: 5
 %   - 调节原则:
 %     * 太小 → 结果不稳定，随机性大
 %     * 太大 → 计算时间长，收益递减
-%     * 建议: 10-20次对大多数情况足够
+%     * 建议: 5-20次对大多数情况足够
 ```
 
 #### 过滤参数
@@ -355,6 +356,7 @@ $$\text{RMS} = \sqrt{\frac{1}{|\Omega|} \sum_{(i,j) \in \Omega} \text{value}(i,j
 #### 并行配置
 ```matlab
 % use_parallel: 并行开关
+%   - 默认值: true
 %   - 建议: 大数据集(>100个子图)时启用
 %   - 注意: 需要Parallel Computing Toolbox
 
@@ -363,8 +365,39 @@ $$\text{RMS} = \sqrt{\frac{1}{|\Omega|} \sum_{(i,j) \in \Omega} \text{value}(i,j
 %   - 建议: 不超过CPU核心数
 
 % random_seed: 随机种子
-%   - 默认: [] (不固定)
+%   - 默认值: 42
 %   - 用途: 确保实验可复现
+%   - 设为 [] 表示不固定种子
+```
+
+#### 距离计算方法
+```matlab
+% distance_method: 最近邻距离计算方法
+%   - 取值: 'bruteforce' | 'kdtree'
+%   - 默认值: 'bruteforce'
+%   - 调节原则:
+%     * bruteforce: 适合小规模邻域，实现简单
+%     * kdtree: 适合大规模邻域（点数>kdtree_min_points），速度更快
+
+% kdtree_min_points: 启用KD树的最小点数阈值
+%   - 默认值: 20
+%   - 含义: 当邻域点数超过此阈值时才使用KD树加速
+```
+
+#### 流程控制
+```matlab
+% generate_optimized_submaps: 是否在评估前生成基于目标位姿的子地图
+%   - 默认值: true
+%   - 设为 false 可直接使用原始子地图目录
+
+% skip_optimized_submaps: 是否强制跳过优化子地图生成
+%   - 默认值: false
+%   - 设为 true 时会覆盖 generate_optimized_submaps，直接使用原始子地图
+
+% submap_pose_mode: 优化子地图生成时使用的目标位姿
+%   - 取值: 'optimized' | 'corrupted'
+%   - 默认值: 'optimized'
+%   - 设为 'corrupted' 可评估优化前的基准表现
 ```
 
 ### 5.3 配置文件模板
@@ -378,26 +411,50 @@ function cfg = config()
     %% CBEE一致性误差评估配置
     cfg.cbee = struct();
     
-    % 核心参数
-    cfg.cbee.cell_size_xy = 0.5;           % 栅格大小(米)
+    % 路径配置
+    cfg.cbee.paths = struct();
+    cfg.cbee.paths.gt_pcd_dir       = 'Data/submaps';           % 子地图目录
+    cfg.cbee.paths.poses_original   = 'Data/poses_original.txt'; % 原始位姿
+    cfg.cbee.paths.poses_optimized  = 'Data/poses_optimized.txt'; % 优化位姿
+    cfg.cbee.paths.poses_corrupted  = 'Data/poses_corrupted.txt'; % 扰动位姿
+    cfg.cbee.paths.output_data_results = 'Results/CBEE/CBEE_data_results';
+    cfg.cbee.paths.output_optimized_submaps = 'Results/CBEE/CBEE_optimized_submaps';
+    
+    % 核心算法参数
+    cfg.cbee.cell_size_xy = 1.0;           % 栅格大小(米)
     cfg.cbee.neighborhood_size = 3;        % 邻域尺寸(3x3)
-    cfg.cbee.nbr_averages = 10;            % 采样次数
+    cfg.cbee.nbr_averages = 5;             % 采样次数
     cfg.cbee.min_points_per_cell = 3;      % 最小点数阈值
     
     % 性能参数
-    cfg.cbee.use_parallel = false;         % 并行开关
+    cfg.cbee.use_parallel = true;          % 并行开关
     cfg.cbee.num_workers = [];             % 自动检测worker数
     cfg.cbee.random_seed = 42;             % 固定随机种子
     
-    % 保存选项
+    % 高程插值与掩码参数
+    cfg.cbee.elevation_method = 'mean';         % 格内高程聚合方法
+    cfg.cbee.elevation_interp = 'linear';       % 高程插值方法
+    cfg.cbee.elevation_smooth_win = 0;          % 高程平滑窗口(0=不平滑)
+    cfg.cbee.elevation_mask_enable = true;      % 是否启用距离掩码
+    cfg.cbee.elevation_mask_radius = 2.0;       % 掩码半径(格子单位)
+    
+    % 处理选项
     cfg.cbee.options = struct();
-    cfg.cbee.options.save_optimized_submaps = false;   % 是否保存优化子地图
-    cfg.cbee.options.save_CBEE_data_results = true;    % 是否保存CBEE结果
+    cfg.cbee.options.generate_optimized_submaps = true;  % 是否生成优化子地图
+    cfg.cbee.options.skip_optimized_submaps = false;     % 是否跳过优化子地图生成
+    cfg.cbee.options.submap_pose_mode = 'optimized';     % 'optimized' | 'corrupted'
+    cfg.cbee.options.save_optimized_submaps = true;      % 是否保存优化子地图
+    cfg.cbee.options.save_CBEE_data_results = true;      % 是否保存CBEE结果
+    cfg.cbee.options.load_only = false;                  % 仅加载不计算
+    cfg.cbee.options.distance_method = 'bruteforce';     % 'bruteforce' | 'kdtree'
+    cfg.cbee.options.kdtree_min_points = 20;             % KD树最小点数阈值
     
     % 可视化选项
     cfg.cbee.visualize = struct();
-    cfg.cbee.visualize.enable = true;      % 是否显示图形
-    cfg.cbee.visualize.color_map = 'parula'; % 热力图色彩方案
+    cfg.cbee.visualize.enable = true;                    % 是否显示图形
+    cfg.cbee.visualize.colormap = 'jet';                 % 热力图色彩方案
+    cfg.cbee.visualize.plot_individual_submaps = false;  % 是否单独绘制子地图
+    cfg.cbee.visualize.sample_rate = 0.2;                % 可视化采样率
 end
 ```
 
@@ -452,26 +509,43 @@ title(sprintf('CBEE一致性误差图 (RMS=%.3f)', result.rms_value));
 ```matlab
 % 高精度分析配置 (适用于高质量数据)
 gridParams_fine = struct(...
-    'cell_size_xy', 0.2, ...      % 更小栅格
+    'cell_size_xy', 0.5, ...       % 更小栅格
     'neighborhood_size', 5, ...    % 更大邻域
     'nbr_averages', 20, ...        % 更多采样
-    'min_points_per_cell', 5);     % 更严格过滤
+    'min_points_per_cell', 5, ...  % 更严格过滤
+    'distance_method', 'kdtree');  % 使用KD树加速
 
 % 快速预览配置
 gridParams_fast = struct(...
-    'cell_size_xy', 1.0, ...      % 更大栅格
+    'cell_size_xy', 1.5, ...       % 更大栅格
     'neighborhood_size', 3, ...
-    'nbr_averages', 5, ...         % 更少采样
+    'nbr_averages', 3, ...         % 更少采样
     'min_points_per_cell', 2);
 
 % 大数据集配置
 gridParams_large = struct(...
-    'cell_size_xy', 0.5, ...
+    'cell_size_xy', 1.0, ...
     'neighborhood_size', 3, ...
-    'nbr_averages', 10, ...
+    'nbr_averages', 5, ...
     'min_points_per_cell', 3, ...
     'use_parallel', true, ...      % 启用并行
+    'distance_method', 'kdtree', ... % 使用KD树加速
     'random_seed', 42);
+
+% 评估优化前后对比示例
+% 1. 评估优化前（使用扰动位姿）
+cfg.cbee.options.submap_pose_mode = 'corrupted';
+run('Src/main_evaluateCBEE.m');
+% 记录 RMS 值: rms_before
+
+% 2. 评估优化后（使用优化位姿）
+cfg.cbee.options.submap_pose_mode = 'optimized';
+run('Src/main_evaluateCBEE.m');
+% 记录 RMS 值: rms_after
+
+% 3. 计算改善百分比
+improvement = (rms_before - rms_after) / rms_before * 100;
+fprintf('优化改善: %.2f%%\n', improvement);
 ```
 
 ## 7. 结果解读指南

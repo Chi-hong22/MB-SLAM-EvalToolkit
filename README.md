@@ -164,7 +164,7 @@ matlab -batch "addpath(genpath('Src')); plotATEDistributions('files',{'Results/f
 **输入:**
 -   **子地图目录**: 包含`.pcd`或`.pdc`格式的点云文件，文件名格式为`submap_#_frame.pcd`。
 -   **原始轨迹**: `poses_original.txt`（TUM格式：timestamp tx ty tz qx qy qz qw）
--   **优化轨迹**: `poses_optimized.txt`（TUM格式）
+-   **目标轨迹**: `poses_optimized.txt` 或 `poses_corrupted.txt`（TUM格式，通过`submap_pose_mode`参数控制）
 -   **配置文件**: `Src/config.m` 中定义的CBEE相关参数。
 
 **输出:**
@@ -185,16 +185,17 @@ matlab -batch "addpath(genpath('Src')); plotATEDistributions('files',{'Results/f
         -   **误差分布统计**: 最小值、最大值、均值、标准差、分位数等详细统计。
 
 **核心算法原理:**
-CBEE采用栅格化分析方法，将全局空间划分为二维栅格（默认0.5m×0.5m），对每个栅格：
-1. 收集该栅格及其邻域内所有子图的点云数据。
-2. 进行多次蒙特卡洛采样（默认10次），计算采样点到其他子图邻域点云的最近邻距离。
+CBEE采用栅格化分析方法，将全局空间划分为二维栅格（默认1.0m×1.0m），对每个栅格：
+1. 收集该栅格及其邻域内所有子图的点云数据（默认3×3邻域）。
+2. 进行多次蒙特卡洛采样（默认5次），计算采样点到其他子图邻域点云的最近邻距离。
 3. 取所有子图最近邻距离的最大值作为该次采样的误差，多次采样取平均值。
 4. 汇总所有有效栅格的误差，计算整体RMS一致性误差。
 
 **使用流程:**
 1.  **配置数据**: 打开 `Src/config.m`，设置 `cfg.cbee.paths` 中的子地图目录和轨迹文件路径。
-2.  **调整参数**: 根据需要调整栅格大小(`cell_size_xy`)、邻域尺寸(`neighborhood_size`)、采样次数(`nbr_averages`)等。
-3.  **运行脚本**: 在MATLAB中直接运行 `Src/main_evaluateCBEE.m`。
+2.  **选择评估模式**: 设置 `cfg.cbee.options.submap_pose_mode` 为 `'optimized'` 或 `'corrupted'`，控制使用优化后或扰动位姿；如需默认跳过优化子地图生成，可将 `cfg.cbee.options.skip_optimized_submaps` 设为 `true`。
+3.  **调整参数**: 根据需要调整栅格大小(`cell_size_xy`)、邻域尺寸(`neighborhood_size`)、采样次数(`nbr_averages`)等。
+4.  **运行脚本**: 在MATLAB中直接运行 `Src/main_evaluateCBEE.m`。
 
 **运行时参数:**
 ```matlab
