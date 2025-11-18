@@ -118,6 +118,7 @@ end
 fprintf('\n正在生成可视化结果...\n');
 all_figures = [];
 figure_names = {};
+figure_size_keys = {};
 
 % 4.0 原始轨迹图
 fig_raw = figure('Name', 'Trajectories (Raw)');
@@ -138,6 +139,7 @@ plotTrajectories(ax, raw_gt_traj, corr_traj, opt_traj, cfg, 'raw');
 
 all_figures(end+1) = fig_raw;
 figure_names{end+1} = 'trajectories_raw';
+figure_size_keys{end+1} = 'ateTrajectory';
 
 % 为每个轨迹生成可视化
 for i = 1:length(trajectory_results)
@@ -150,6 +152,7 @@ for i = 1:length(trajectory_results)
     
     all_figures(end+1) = fig_traj;
     figure_names{end+1} = sprintf('trajectory_comparison_%s', traj_name);
+    figure_size_keys{end+1} = 'ateTrajectory';
     
     % 4.2 ATE 分析图
     [fig_ate_timeseries, fig_ate_hist, fig_ate_cdf] = plotATEData(result.ate_metrics, cfg);
@@ -158,6 +161,7 @@ for i = 1:length(trajectory_results)
     figure_names{end+1} = sprintf('ate_timeseries_%s', traj_name);
     figure_names{end+1} = sprintf('ate_histogram_%s', traj_name);
     figure_names{end+1} = sprintf('ate_cdf_%s', traj_name);
+    figure_size_keys(end+1:end+3) = {'ateTrajectory', 'ateTrajectory', 'ateTrajectory'};
 end
 
 %% --- 5. 保存数据文件 ---
@@ -190,9 +194,13 @@ for i = 1:length(all_figures)
     pos = get(fig, 'Position');
     pos(1) = 2;  % X位置
     pos(2) = 2;  % Y位置
-    pos(3) = cfg.global.visual.figure_width_cm * cfg.global.visual.figure_size_multiple;
-    pos(4) = cfg.global.visual.figure_height_cm * cfg.global.visual.figure_size_multiple;
+    [fig_width_cm, fig_height_cm] = getFigureSize(cfg.global.visual, figure_size_keys{i});
+    pos(3) = fig_width_cm;
+    pos(4) = fig_height_cm;
     set(fig, 'Position', pos);
+    set(fig, 'PaperUnits', 'centimeters');
+    set(fig, 'PaperSize', [fig_width_cm, fig_height_cm]);
+    set(fig, 'PaperPosition', [0 0 fig_width_cm fig_height_cm]);
 end
 fprintf('图像格式配置完成。\n');
 

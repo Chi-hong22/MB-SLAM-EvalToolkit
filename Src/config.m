@@ -1,8 +1,39 @@
-function cfg = config()
-% config - 返回分析工具的配置参数（全新分层：global/ate/ape/cbee）
+%% config - MB-SLAM-EvalToolkit 全局配置入口
 %
-% 输出:
-%   cfg - (struct) 包含所有配置参数的结构体
+% 功能描述：
+%   统一管理全项目（global/ate/ape/cbee/errorTimeSeries 等）的可视化、保存、
+%   输入路径与算法参数，调用一次返回 cfg 结构供各模块复用。
+%
+% 作者信息：
+%   作者：Chihong（游子昂）
+%   邮箱：you.ziang@hrbeu.edu.cn
+%   单位：哈尔滨工程大学
+%
+% 版本信息：
+%   当前版本：v1.0
+%   创建日期：251118
+%   最后修改：251118
+%
+% 版本历史：
+%   v1.0 (251118) - 首次整理分层配置
+%       + 建立 global/ate/ape/cbee/errorTimeSeries 模块化参数
+%       + 引入统一的可视化与保存策略
+%
+% 输入参数：
+%   无（脚本调用即可返回配置）
+%
+% 输出参数：
+%   cfg - struct，包含全项目所需的配置字段
+%
+% 注意事项：
+%   1. 修改参数后需重新执行 config() 以刷新 cfg。
+%   2. 路径建议使用 fullfile，以兼容多平台。
+%   3. errorTimeSeries 模块依赖新增的 cfg.errorTimeSeries.* 字段。
+%
+% 调用示例：
+%   cfg = config();
+
+function cfg = config()
 
     cfg = struct();
     
@@ -14,10 +45,27 @@ function cfg = config()
     cfg.global.visual = struct();
     cfg.global.visual.font_name           = 'Arial';
     cfg.global.visual.font_size_base      = 8;      % pt
-    cfg.global.visual.figure_width_cm     = 4.4;    % cm 8.8
-    cfg.global.visual.figure_height_cm    = 4.4;    % cm 8.8
-    cfg.global.visual.font_size_multiple  = 3;      % 倍数
-    cfg.global.visual.figure_size_multiple= 3;      % 倍数
+
+    cfg.global.visual.font_size_multiple  = 3;      % 字体放缩倍数
+    cfg.global.visual.figure_size_multiple= 3;      % 图窗放缩倍数
+
+    % 模块专用绘图尺寸（单位：cm）
+    cfg.global.visual.figure_sizes = struct();
+    cfg.global.visual.figure_sizes.ateTrajectory = struct( ...
+        'width_cm', 4.4, ...
+        'height_cm', 4.4);
+    cfg.global.visual.figure_sizes.ateDistribution = struct( ...
+        'width_cm', 8.8, ...
+        'height_cm', 8.8);
+    cfg.global.visual.figure_sizes.apeComparison = struct( ...
+        'width_cm', 8.8, ...
+        'height_cm', 4.4);
+    cfg.global.visual.figure_sizes.errorTimeSeries = struct( ...
+        'width_cm', 8.8, ...
+        'height_cm', 4.4);
+    cfg.global.visual.figure_width_cm     = 4.4;    % cm 无设置的默认宽度
+    cfg.global.visual.figure_height_cm    = 4.4;    % cm 无设置的默认高度
+
 
     % 轨迹样式（全局共享）
     cfg.global.visual.gt_color            = [25, 158, 34]/255;  % 绿色 rgb(25,158,34)
@@ -36,6 +84,7 @@ function cfg = config()
     cfg.global.visual.est_line_style      = '-';
     cfg.global.visual.trajectory_line_width = 1.5;
 
+
     % 通用保存
     cfg.global.save = struct();
     cfg.global.save.enable    = true;
@@ -44,6 +93,48 @@ function cfg = config()
     cfg.global.save.formats   = {'png','eps'};
     cfg.global.save.dpi       = 600;
     cfg.global.save.timestamp = 'yyyymmdd_HHMMSS';  % 格式：yyyymmdd_HHMMSS
+
+%% === errorTimeSeries（误差时间序列模块） ===
+    cfg.errorTimeSeries = struct();
+    cfg.errorTimeSeries.enable    = true;
+    cfg.errorTimeSeries.pingDt    = 0.003;
+    cfg.errorTimeSeries.outputDir = 'Results/ErrorTimeSeries';
+    cfg.errorTimeSeries.outputMat = fullfile(cfg.errorTimeSeries.outputDir, 'ping_error.mat');
+    cfg.errorTimeSeries.savePlot  = true;
+    cfg.errorTimeSeries.truncateToCommonRange = true;
+
+    cfg.errorTimeSeries.comb = struct( ...
+        'originalPath', 'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_original.txt', ...
+        'insPath',      'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_corrupted.txt', ...
+        'slamPath',     'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_optimized.txt', ...
+        'submapDir',    'Data/250911_Comb_noINS/submaps');
+
+    cfg.errorTimeSeries.nesp = struct( ...
+        'originalPath', 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_original.txt', ...
+        'slamPath',     'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_optimized.txt', ...
+        'submapDir',    'Data/251111_NESP_noINS/submaps');
+
+    cfg.errorTimeSeries.submapExtList = {'.pcd', '.pdc'};
+
+    cfg.errorTimeSeries.vis = struct();
+    cfg.errorTimeSeries.vis.curves = struct();
+    cfg.errorTimeSeries.vis.curves.INS = struct( ...
+        'color',     cfg.global.visual.corrupted_color, ...
+        'lineStyle', cfg.global.visual.corrupted_line_style, ...
+        'lineWidth', cfg.global.visual.corrupted_line_width);
+    cfg.errorTimeSeries.vis.curves.Comb = struct( ...
+        'color',     cfg.global.visual.optimized_color, ...
+        'lineStyle', cfg.global.visual.optimized_line_style, ...
+        'lineWidth', cfg.global.visual.optimized_line_width);
+    cfg.errorTimeSeries.vis.curves.NESP = struct( ...
+        'color',     cfg.global.visual.gt_color, ...
+        'lineStyle', cfg.global.visual.gt_line_style, ...
+        'lineWidth', cfg.global.visual.gt_line_width);
+
+    cfg.errorTimeSeries.vis.axes = struct( ...
+        'xlabel', 'Time (s)', ...
+        'ylabel', 'Position Error (m)', ...
+        'ylim',   []);
 
 %% === ate（ATE 模块） ===
     cfg.ate = struct();

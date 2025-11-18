@@ -281,9 +281,15 @@ function setupAxes(cfg, STYLE, title_str)
     set(ax, 'FontSize', font_axis * 0.9, 'FontName', cfg.global.visual.font_name);
     
     fig = gcf;
+    [fig_width_cm, fig_height_cm] = getFigureSize(cfg.global.visual, 'ateDistribution');
+    set(fig, 'Units', 'centimeters');
+    pos = get(fig, 'Position');
+    pos(3) = fig_width_cm;
+    pos(4) = fig_height_cm;
+    set(fig, 'Position', pos);
     fig.PaperUnits = 'centimeters';
-    fig.PaperSize = [cfg.global.visual.figure_width_cm, cfg.global.visual.figure_height_cm] * cfg.global.visual.figure_size_multiple;
-    fig.PaperPosition = [0 0 fig.PaperSize];
+    fig.PaperSize = [fig_width_cm, fig_height_cm];
+    fig.PaperPosition = [0 0 fig_width_cm fig_height_cm];
 end
 
 function h = violinPlot(group_index, data_values, face_color, edge_color, varargin)

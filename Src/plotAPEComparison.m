@@ -133,9 +133,8 @@ function fig_handle = plotAPEComparison(varargin)
     % 创建图窗
     fig_handle = figure('Name', 'XY Planar APE Comparison', 'NumberTitle', 'off');
     
-    % 设置图窗尺寸
-    fig_width = cfg.global.visual.figure_width_cm * cfg.global.visual.figure_size_multiple;
-    fig_height = cfg.global.visual.figure_height_cm * cfg.global.visual.figure_size_multiple/2;
+    % 设置图窗尺寸（模块专用配置）
+    [fig_width, fig_height] = getFigureSize(cfg.global.visual, 'apeComparison');
     set(fig_handle, 'Units', 'centimeters');
     set(fig_handle, 'Position', [2, 2, fig_width, fig_height]);
     set(fig_handle, 'PaperUnits', 'centimeters');

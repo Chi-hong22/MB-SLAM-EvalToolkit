@@ -33,6 +33,7 @@
 - **误差分布对比**: 支持将多次实验的 ATE 结果绘制成 **箱线图 (Box Plot)** 和 **小提琴图 (Violin Plot)**，方便横向比较不同算法或参数设置的优劣。
 - **轨迹可视化**: 能够将估计轨迹与真值轨迹在空间上自动对齐（SE(3)），并生成 2D 俯视图和 3D 轨迹对比图，可以直观地检查轨迹的吻合程度。
 - **一致性热力图**: 生成基于栅格的一致性误差热力图，直观展示空间误差分布，便于识别系统性能薄弱区域。
+- **误差时间序列分析**：新增 `main_errorTimeSeries` 模块，将 Comb / NESP 的 INS / SLAM 误差统一展开为 ping 级时间序列，自动输出 `ping_error.mat` 与多指标对比曲线。
 - **数据与报告导出**: 自动保存计算出的关键指标（如 RMSE、均值等）到 JSON/CSV 文件，并生成用于论文或报告的 PNG 图表。
 
 ## 2. 文件结构
@@ -62,6 +63,7 @@
 │   ├── main_plotAPE.m              # APE对比绘图入口脚本
 │   ├── main_plotBoxViolin.m        # ATE分布对比入口脚本
 │   ├── main_evaluateCBEE.m         # CBEE一致性误差评估入口脚本
+│   ├── main_errorTimeSeries.m      # Comb/NESP 误差时间序列入口脚本
 │   ├── buildCbeeErrorGrid.m        # CBEE核心计算函数
 │   ├── computeRmsConsistencyError.m # RMS一致性误差计算
 │   ├── loadAllSubmaps.m            # 子地图批量加载
@@ -213,6 +215,23 @@ run('Src/main_evaluateCBEE.m')
 
 > **详细说明请参阅**: **[./Docs/main_evaluateCBEE.md](./Docs/main_evaluateCBEE.md)**
 
+### 4.5 `main_errorTimeSeries.m` - Comb / NESP 误差时间序列模块
+
+该脚本用于对离线 Comb 与 NESP 数据集生成“时间 vs XY 平面误差”曲线，统一输出 ping 级误差表 `ping_error.mat` 及可视化图。支持同时绘制 INS / Comb / NESP 三条曲线，可按最短时间范围截断横轴，实现不同子地图数量下的公平对比。
+
+**输入:**
+- `cfg.errorTimeSeries` 中配置的 Comb / NESP 轨迹路径及对应子地图目录。
+
+**输出:**
+- `Results/ErrorTimeSeries/<timestamp>_errorTimeSeries/` 目录，包含 `ping_error.mat`（变量 `pingErrorTable`）以及 `error_time_series.<fmt>` 图像。
+
+**使用流程:**
+1. 在 `config.m` 中补齐 `cfg.errorTimeSeries.*` 与可视化参数。
+2. 运行 `Src/main_errorTimeSeries.m`。
+3. 在结果目录中查看 MAT 数据与图像。
+
+> **详细说明请参阅**: **[./Docs/main_errorTimeSeries.md](./Docs/main_errorTimeSeries.md)**
+
 ## 5. 函数与算法说明
 
 ### 5.1 主要函数说明
@@ -221,6 +240,7 @@ run('Src/main_evaluateCBEE.m')
 -   `main_plotAPE.m`: **APE对比绘图入口**。
 -   `main_plotBoxViolin.m`: **ATE分布对比入口**。
 -   `main_evaluateCBEE.m`: **CBEE一致性误差评估入口**。
+-   `main_errorTimeSeries.m`: **Comb/NESP 误差时间序列入口**，生成 ping 级误差表与三曲线对比图。
 -   `readTrajectory.m`: **数据读取函数**。
 -   `alignAndComputeATE.m`: **核心计算函数**，执行时间关联、SE(3)对齐和ATE计算。
 -   `buildCbeeErrorGrid.m`: **CBEE核心计算函数**，构建一致性误差栅格。
@@ -247,6 +267,7 @@ run('Src/main_evaluateCBEE.m')
   - [`main_plotBoxViolin.m` 模块详解](./Docs/main_plotBoxViolin.md)
   - [`main_plotAPE.m` 模块详解](./Docs/main_plotAPE.md)
   - [`main_evaluateCBEE.m` 模块详解](./Docs/main_evaluateCBEE.md)
+  - [`main_errorTimeSeries.m` 模块详解](./Docs/main_errorTimeSeries.md)
 - **概念与算法**:
   - [ATE 概念详解](./Docs/ATE_introduction.md)
   - [核心算法逻辑详解](./Docs/algorithm_details.md)
