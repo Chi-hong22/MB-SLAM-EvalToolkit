@@ -159,11 +159,10 @@ function visualizeSubmaps(measurements, varargin)
             colormap_name = 'jet';
     end
     
-    % 创建图像（统一使用厘米单位与全局尺寸）
+    % 创建图像（统一使用厘米单位与CBEE模块尺寸）
+    [fig_w_cm, fig_h_cm] = getFigureSize(p.Results.GlobalVisual, 'cbee');
     figure('Name', 'Submap Visualization', 'NumberTitle', 'off', 'Color','w', ...
-        'Units','centimeters', 'Position', [2, 2, ...
-        p.Results.GlobalVisual.figure_width_cm * p.Results.GlobalVisual.figure_size_multiple, ...
-        p.Results.GlobalVisual.figure_height_cm * p.Results.GlobalVisual.figure_size_multiple]);
+        'Units','centimeters', 'Position', [2, 2, fig_w_cm, fig_h_cm]);
     
     % 使用二维俯视图绘制（颜色映射 Z）
     scatter(all_points(:, 1), all_points(:, 2), marker_size, color_data, 'filled');
@@ -238,8 +237,7 @@ function visualizeIndividualSubmaps(measurements, sample_rate, marker_size, Glob
     font_name = GlobalVisual.font_name;
     fs_base   = GlobalVisual.font_size_base;
     fs_mul    = GlobalVisual.font_size_multiple;
-    fig_w_cm  = GlobalVisual.figure_width_cm * GlobalVisual.figure_size_multiple;
-    fig_h_cm  = GlobalVisual.figure_height_cm * GlobalVisual.figure_size_multiple;
+    [fig_w_cm, fig_h_cm] = getFigureSize(GlobalVisual, 'cbee');
     axis_fs = round(fs_base * fs_mul);
     title_fs = max(axis_fs, round(axis_fs * 1.2));
 

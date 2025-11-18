@@ -43,6 +43,7 @@
 function [width_cm, height_cm] = getFigureSize(visualCfg, key, defaultWidth, defaultHeight)
 
     multiplier = visualCfg.figure_size_multiple;
+    apply_multiplier = true;
 
     if nargin < 3 || isempty(defaultWidth)
         defaultWidth = visualCfg.figure_width_cm;
@@ -55,10 +56,14 @@ function [width_cm, height_cm] = getFigureSize(visualCfg, key, defaultWidth, def
     height_cm = defaultHeight;
 
     if nargin < 2 || isempty(key)
-        width_cm  = width_cm  * multiplier;
-        height_cm = height_cm * multiplier;
+        if apply_multiplier
+            width_cm  = width_cm  * multiplier;
+            height_cm = height_cm * multiplier;
+        end
         return;
     end
+
+    key = convertStringsToChars(key);
 
     if isfield(visualCfg, 'figure_sizes') && isfield(visualCfg.figure_sizes, key)
         sizeCfg = visualCfg.figure_sizes.(key);
@@ -68,9 +73,14 @@ function [width_cm, height_cm] = getFigureSize(visualCfg, key, defaultWidth, def
         if isfield(sizeCfg, 'height_cm') && ~isempty(sizeCfg.height_cm)
             height_cm = sizeCfg.height_cm;
         end
+        if isfield(sizeCfg, 'apply_multiplier') && ~isempty(sizeCfg.apply_multiplier)
+            apply_multiplier = logical(sizeCfg.apply_multiplier);
+        end
     end
 
-    width_cm  = width_cm  * multiplier;
-    height_cm = height_cm * multiplier;
+    if apply_multiplier
+        width_cm  = width_cm  * multiplier;
+        height_cm = height_cm * multiplier;
+    end
 end
 

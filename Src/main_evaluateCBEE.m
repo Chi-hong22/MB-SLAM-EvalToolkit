@@ -477,8 +477,7 @@ if (isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'save_CBEE_data_resu
     gv = cfg.global.visual;
     axis_fs = round(gv.font_size_base * gv.font_size_multiple);
     title_fs = axis_fs; cb_fs = axis_fs;
-    fig_w_cm = gv.figure_width_cm * gv.figure_size_multiple;
-    fig_h_cm = gv.figure_height_cm * gv.figure_size_multiple;
+    [fig_w_cm, fig_h_cm] = getFigureSize(gv, 'cbee');
 
     fig = figure('Color', 'w', 'Units','centimeters', 'Position', [2, 2, fig_w_cm, fig_h_cm], ...
                  'Name','CBEE Error Map', 'NumberTitle','off');
