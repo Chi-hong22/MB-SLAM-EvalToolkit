@@ -87,6 +87,14 @@ function cfg = config()
     cfg.global.visual.est_line_style      = '-';
     cfg.global.visual.trajectory_line_width = 1.5;
 
+    % 关键帧标记样式
+    cfg.global.visual.keyframe_marker = struct();
+    cfg.global.visual.keyframe_marker.enable        = true;
+    cfg.global.visual.keyframe_marker.symbol        = 'o';
+    cfg.global.visual.keyframe_marker.size          = 2.5;
+    cfg.global.visual.keyframe_marker.face_color    = []; % 实际绘制时使用轨迹颜色
+    cfg.global.visual.keyframe_marker.edge_width    = 0.8;
+
 
     % 通用保存
     cfg.global.save = struct();
@@ -146,8 +154,8 @@ function cfg = config()
     cfg.ate.paths = struct();
 
     % ATE 主流程输入文件夹与标准文件名
-    cfg.ate.paths.input_folder = 'Data\250911_Comb_noINS\Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5';
-    % cfg.ate.paths.input_folder = 'Data\251111_NESP_noINS\NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6';
+    % cfg.ate.paths.input_folder = 'Data\250911_Comb_noINS\Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5';
+    cfg.ate.paths.input_folder = 'Data\251111_NESP_noINS\NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6';
 
     cfg.ate.paths.gt_file_name         = 'poses_original.txt';
     cfg.ate.paths.est_corrupted_name   = 'poses_corrupted.txt';

@@ -191,7 +191,7 @@ function fig_handles = plotATEDistributions(varargin)
     end
     xticks(1:num_groups);
     xticklabels(labels);
-    setupAxes(cfg, STYLE, 'ATE Distribution by Path Planning Method');
+    setupAxes(cfg, STYLE, '');
     hold off;
 
     fig_handles = [h_box, h_violin];
@@ -275,7 +275,11 @@ function setupAxes(cfg, STYLE, title_str)
     font_axis  = cfg.global.visual.font_size_base * cfg.global.visual.font_size_multiple;
     font_title = round(1.2 * font_axis);
     
-    title(title_str, 'FontSize', font_title, 'FontName', cfg.global.visual.font_name);
+    if ~isempty(title_str)
+        title(title_str, 'FontSize', font_title, 'FontName', cfg.global.visual.font_name);
+    else
+        title('');
+    end
     ylabel('Absolute Trajectory Error (m)', 'FontSize', font_axis, 'FontName', cfg.global.visual.font_name);
     xlabel('Path Planning Method', 'FontSize', font_axis, 'FontName', cfg.global.visual.font_name);
     set(ax, 'FontSize', font_axis * 0.9, 'FontName', cfg.global.visual.font_name);
