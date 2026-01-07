@@ -6,6 +6,7 @@
 .github/
 .qoder/
 .qoder.yml
+.cursor/
 # Ignore all contents of the Data directory
 /Data/*
 

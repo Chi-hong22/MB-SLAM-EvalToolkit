@@ -56,7 +56,7 @@ function cfg = config()
         'height_cm', 4.4);
     cfg.global.visual.figure_sizes.ateDistribution = struct( ...
         'width_cm', 8.8, ...
-        'height_cm', 8.8);
+        'height_cm', 6.6);
     cfg.global.visual.figure_sizes.apeComparison = struct( ...
         'width_cm', 8.8, ...
         'height_cm', 4.4);
@@ -170,12 +170,12 @@ function cfg = config()
 
     % ATE 分布（BoxViolin）输入
     cfg.ate.paths.boxviolin_files      = {
-        'Data\251111_NESP_noINS\20251113_174148_ATE_data\ate_details_optimized.csv', ...
-        'Data\250911_Comb_noINS\20251113_174602_ATE_data\ate_details_optimized.csv'
+        'Data\250911_Comb_noINS\20251113_174602_ATE_data\ate_details_optimized.csv', ...
+        'Data\251111_NESP_noINS\20251113_174148_ATE_data\ate_details_optimized.csv'
     };
 
     % 标签/绘图辅助
-    cfg.ate.labels = {'NESP', 'Comb'};
+    cfg.ate.labels = {'Comb', 'NESP'};
 
     % 保存
     cfg.ate.save = struct();
@@ -260,5 +260,58 @@ function cfg = config()
     cfg.cbee.options.distance_method    = 'bruteforce'; % 'bruteforce' | 'kdtree'
     cfg.cbee.options.kdtree_min_points  = 20;           % 构建 KD 树的最小点数
     % 预留: 未来可增加 cfg.cbee.options.strict_random = false; 以在并行下保持严格复现
+
+%% === loop（回环可视化模块） ===
+    cfg.loop = struct();
+    
+    % 路径配置
+    cfg.loop.paths = struct();
+    cfg.loop.paths.input_folder   = 'Data\251111_NESP_noINS\NESP_noINS_seed40_yaw_0.05_0.005rad_overlap_coverage_0.6'; 
+    cfg.loop.paths.output_folder  = 'Results/LoopClosures';     % 输出目录
+    
+    % 位姿文件选择（手动指定文件名）
+    cfg.loop.paths.pose_file      = 'poses_optimized.txt';      % 默认使用优化位姿
+    % 可选: 'poses_optimized.txt' 或 'poses_corrupted.txt'
+    
+    % 固定文件名
+    cfg.loop.paths.loop_file      = 'loop_closures.txt';        % 回环数据文件名
+    
+    % 可视化参数
+    cfg.loop.visual = struct();
+    
+    % 节点样式
+    cfg.loop.visual.node_color           = [255, 66, 37]/255;   % 节点颜色 rgb(255,66,37) 红色
+    cfg.loop.visual.node_base_size       = 20;                  % 节点基准尺寸（无回环时）
+    cfg.loop.visual.node_scale_factor    = 10;                   % 节点尺寸放大系数（每增加1个回环度数）
+    cfg.loop.visual.node_min_size        = 15;                  % 节点最小尺寸
+    cfg.loop.visual.node_max_size        = 200;                 % 节点最大尺寸（防止过大）
+    cfg.loop.visual.node_marker          = 'o';                 % 节点标记符号
+    cfg.loop.visual.node_edge_width      = 1.0;                 % 节点边框宽度
+    
+    % 里程计边样式（关键帧顺序连接）
+    cfg.loop.visual.odom_color           = [150, 150, 150]/255; % 里程计边颜色 灰色 rgb(150,150,150)
+    cfg.loop.visual.odom_line_style      = '-';                 % 里程计边线型
+    cfg.loop.visual.odom_line_width      = 1.0;                 % 里程计边线宽
+    
+    % 回环边样式
+    cfg.loop.visual.loop_color           = [58, 104, 231]/255;  % 回环边颜色 蓝色 rgb(58,104,231)
+    cfg.loop.visual.loop_line_style      = '-';                 % 回环边线型
+    cfg.loop.visual.loop_line_width      = 0.8;                 % 回环边线宽
+    
+    % 图窗尺寸（cm）
+    cfg.loop.visual.figure_width_cm      = 8.8;                 % 图窗宽度
+    cfg.loop.visual.figure_height_cm     = 8.8;                 % 图窗高度
+    
+    % 字体与放大倍数（复用全局配置）
+    cfg.loop.visual.font_name            = cfg.global.visual.font_name;
+    cfg.loop.visual.font_size_base       = cfg.global.visual.font_size_base;
+    cfg.loop.visual.font_size_multiple   = cfg.global.visual.font_size_multiple;
+    cfg.loop.visual.figure_size_multiple = cfg.global.visual.figure_size_multiple;
+    
+    % 保存配置
+    cfg.loop.save = struct();
+    cfg.loop.save.enable    = false;                             % 是否保存图像
+    cfg.loop.save.formats   = cfg.global.save.formats;          % 继承全局保存格式
+    cfg.loop.save.dpi       = cfg.global.save.dpi;              % 继承全局DPI设置
 
 end

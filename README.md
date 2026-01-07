@@ -34,6 +34,7 @@
 - **轨迹可视化**: 能够将估计轨迹与真值轨迹在空间上自动对齐（SE(3)），并生成 2D 俯视图和 3D 轨迹对比图，可以直观地检查轨迹的吻合程度。
 - **一致性热力图**: 生成基于栅格的一致性误差热力图，直观展示空间误差分布，便于识别系统性能薄弱区域。
 - **误差时间序列分析**：新增 `main_errorTimeSeries` 模块，将 Comb / NESP 的 INS / SLAM 误差统一展开为 ping 级时间序列，自动输出 `ping_error.mat` 与多指标对比曲线。
+- **回环约束可视化**：新增 `main_plotLoopClosures` 模块，可视化SLAM系统的回环约束网络，展示关键帧节点、里程计边与回环边的拓扑结构，节点大小按回环度数动态映射，直观体现位姿图优化的约束密度分布。
 - **数据与报告导出**: 自动保存计算出的关键指标（如 RMSE、均值等）到 JSON/CSV 文件，并生成用于论文或报告的 PNG 图表。
 
 ## 2. 文件结构
@@ -53,6 +54,7 @@
 │   ├── main_plotAPE.md             # main_plotAPE.m 模块文档
 │   ├── main_plotBoxViolin.md       # main_plotBoxViolin.m 模块文档
 │   ├── main_evaluateCBEE.md        # main_evaluateCBEE.m 模块文档
+│   ├── main_plotLoopClosures.md    # main_plotLoopClosures.m 模块文档
 │   ├── ATE_introduction.md         # ATE概念详解
 │   └── algorithm_details.md        # 核心算法逻辑详解
 ├── Results/                        # 存放所有输出的结果
@@ -64,10 +66,12 @@
 │   ├── main_plotBoxViolin.m        # ATE分布对比入口脚本
 │   ├── main_evaluateCBEE.m         # CBEE一致性误差评估入口脚本
 │   ├── main_errorTimeSeries.m      # Comb/NESP 误差时间序列入口脚本
+│   ├── main_plotLoopClosures.m     # 回环约束可视化入口脚本
 │   ├── buildCbeeErrorGrid.m        # CBEE核心计算函数
 │   ├── computeRmsConsistencyError.m # RMS一致性误差计算
 │   ├── loadAllSubmaps.m            # 子地图批量加载
 │   ├── generateOptimizedSubmaps.m  # 优化子地图生成
+│   ├── plotLoopClosures.m          # 回环可视化核心绘图函数
 │   └── ...                         # 其他核心函数
 └── README.md                       # 项目介绍与使用说明
 ```
@@ -217,7 +221,7 @@ run('Src/main_evaluateCBEE.m')
 
 ### 4.5 `main_errorTimeSeries.m` - Comb / NESP 误差时间序列模块
 
-该脚本用于对离线 Comb 与 NESP 数据集生成“时间 vs XY 平面误差”曲线，统一输出 ping 级误差表 `ping_error.mat` 及可视化图。支持同时绘制 INS / Comb / NESP 三条曲线，可按最短时间范围截断横轴，实现不同子地图数量下的公平对比。
+该脚本用于对离线 Comb 与 NESP 数据集生成"时间 vs XY 平面误差"曲线，统一输出 ping 级误差表 `ping_error.mat` 及可视化图。支持同时绘制 INS / Comb / NESP 三条曲线，可按最短时间范围截断横轴，实现不同子地图数量下的公平对比。
 
 **输入:**
 - `cfg.errorTimeSeries` 中配置的 Comb / NESP 轨迹路径及对应子地图目录。
@@ -232,6 +236,71 @@ run('Src/main_evaluateCBEE.m')
 
 > **详细说明请参阅**: **[./Docs/main_errorTimeSeries.md](./Docs/main_errorTimeSeries.md)**
 
+### 4.6 `main_plotLoopClosures.m` - 回环约束可视化模块
+
+该脚本用于可视化SLAM系统的回环约束网络，展示关键帧节点、里程计边（顺序连接）和回环边（回环检测）的拓扑结构。节点大小按回环度数（受约束边数量）动态映射，直观体现位姿图优化的约束密度分布。
+
+**输入:**
+- **位姿文件**: `poses_optimized.txt` 或 `poses_corrupted.txt`（通过 `cfg.loop.paths.pose_file` 配置）
+- **回环文件**: `loop_closures.txt`（固定文件名，与位姿文件同目录）
+  - 格式：`<当前ID> <回环ID1> <回环ID2> ...`（采用"大ID→小ID"单向记录）
+- **配置文件**: `Src/config.m` 中定义的回环可视化参数
+
+**输出:**
+- **结果文件夹**: 在 `cfg.loop.paths.output_folder`（默认 `Results/LoopClosures/`）下保存可视化图像
+- **命令行报告**: 输出关键帧数量、回环边数量、节点度数统计等信息
+- **详细输出说明**:
+  - **可视化图表 (PNG/EPS)**:
+    - `<timestamp>_loop_closures.png`: 高分辨率位图（600 dpi）
+    - `<timestamp>_loop_closures.eps`: 矢量格式，适用于论文插图
+  - **图表内容**:
+    - **关键帧节点**: 红色圆点，尺寸随回环度数增大（基准尺寸 + 度数 × 放大系数）
+    - **里程计边**: 灰色实线，连接相邻关键帧，显示轨迹骨架
+    - **回环边**: 蓝色实线，显示长距离约束关系
+    - **坐标轴**: X-Y平面俯视图，单位为米
+
+**核心功能特性:**
+- **智能度数映射**: 节点尺寸 = `base_size + scale_factor × degree`，带最小/最大值限制
+- **论文级导出**: 遵循 `/paper-visual` 规范，支持尺寸/字体等比放大、600 dpi、PNG+EPS 双格式导出
+- **灵活位姿源**: 支持切换优化前/后位姿，分析回环网络差异
+- **数据验证**: 自动过滤自环、验证ID范围、跳过空行和注释
+- **无向计数**: 每条回环边计入两端节点度数，符合无向图约束语义
+
+**使用流程:**
+1.  **配置数据**: 打开 `Src/config.m`，设置 `cfg.loop.paths` 中的数据路径：
+    ```matlab
+    cfg.loop.paths.input_folder = 'Data\您的数据目录';
+    cfg.loop.paths.pose_file = 'poses_optimized.txt';  % 或 'poses_corrupted.txt'
+    cfg.loop.paths.loop_file = 'loop_closures.txt';    % 固定文件名
+    ```
+2.  **调整可视化参数**（可选）: 根据需要调整节点尺寸、颜色、线宽等参数：
+    ```matlab
+    cfg.loop.visual.node_base_size = 20;       % 基准尺寸
+    cfg.loop.visual.node_scale_factor = 8;     % 度数放大系数
+    cfg.loop.visual.node_min_size = 15;        % 最小尺寸
+    cfg.loop.visual.node_max_size = 200;       % 最大尺寸
+    ```
+3.  **运行脚本**: 在MATLAB中直接运行 `Src/main_plotLoopClosures.m`。
+4.  **查看结果**: 图窗显示回环网络拓扑，节点尺寸直观反映约束密度。
+
+**回环文件格式示例:**
+```txt
+17 14 15                      ← 节点17与节点14、15有回环
+18 13 14                      ← 节点18与节点13、14有回环
+121 85 92 115 116 117 118     ← 节点121与多个小ID节点有回环
+```
+- 第一列为当前子图ID，其余列为与之产生回环的子图ID（必须小于当前ID）
+- ID从0开始编号，必须在关键帧数量范围内 `[0, num_keyframes)`
+- 此格式天然保证边的唯一性（每条边只从大ID端记录一次），无需去重
+
+**应用场景:**
+- 分析SLAM系统的回环检测性能和全局约束分布
+- 识别关键约束节点（高度数节点），评估位姿图优化的鲁棒性
+- 对比优化前后的回环网络差异，验证回环检测算法的有效性
+- 为论文生成高质量的回环网络可视化图表
+
+> **详细说明请参阅**: **[./Docs/main_plotLoopClosures.md](./Docs/main_plotLoopClosures.md)**
+
 ## 5. 函数与算法说明
 
 ### 5.1 主要函数说明
@@ -241,12 +310,14 @@ run('Src/main_evaluateCBEE.m')
 -   `main_plotBoxViolin.m`: **ATE分布对比入口**。
 -   `main_evaluateCBEE.m`: **CBEE一致性误差评估入口**。
 -   `main_errorTimeSeries.m`: **Comb/NESP 误差时间序列入口**，生成 ping 级误差表与三曲线对比图。
+-   `main_plotLoopClosures.m`: **回环约束可视化入口**，展示关键帧节点、里程计边与回环边的拓扑结构。
 -   `readTrajectory.m`: **数据读取函数**。
 -   `alignAndComputeATE.m`: **核心计算函数**，执行时间关联、SE(3)对齐和ATE计算。
 -   `buildCbeeErrorGrid.m`: **CBEE核心计算函数**，构建一致性误差栅格。
 -   `computeRmsConsistencyError.m`: **RMS一致性误差计算函数**。
 -   `loadAllSubmaps.m`: **子地图批量加载函数**。
 -   `generateOptimizedSubmaps.m`: **优化子地图生成函数**。
+-   `plotLoopClosures.m`: **回环可视化核心绘图函数**，实现节点度数映射与论文级导出。
 -   `plotTrajectories.m`, `plotATEData.m`, `plotAPEComparison.m`, `plotATEDistributions.m`: 各类**可视化函数**。
 -   `saveTrajectoryData.m`: **数据保存函数**。
 
