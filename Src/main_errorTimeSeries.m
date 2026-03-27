@@ -83,34 +83,45 @@ end
 fprintf('[errorTimeSeries] 所有输入路径已通过校验。\n');
 
 %% 3. 输出目录准备
-baseOutputDir = cfg.errorTimeSeries.outputDir;
-if ~exist(baseOutputDir, 'dir')
-    mkdir(baseOutputDir);
-end
-
-timestamp = datestr(now, cfg.global.save.timestamp);
-runOutputDir = fullfile(baseOutputDir, [timestamp, '_errorTimeSeries']);
-if ~exist(runOutputDir, 'dir')
-    mkdir(runOutputDir);
-end
-
-[~, matBaseName, matExt] = fileparts(cfg.errorTimeSeries.outputMat);
-if isempty(matBaseName)
-    matBaseName = 'ping_error';
-end
-if isempty(matExt)
-    matExt = '.mat';
-end
-
+shouldSaveArtifacts = cfg.errorTimeSeries.saveData && cfg.global.save.figures;
 cfg_local = cfg;
-cfg_local.errorTimeSeries.outputDir = runOutputDir;
-cfg_local.errorTimeSeries.outputMat = fullfile(runOutputDir, [matBaseName, matExt]);
+
+if shouldSaveArtifacts
+    baseOutputDir = cfg.errorTimeSeries.outputDir;
+    if ~exist(baseOutputDir, 'dir')
+        mkdir(baseOutputDir);
+    end
+
+    timestamp = datestr(now, cfg.global.save.timestamp);
+    runOutputDir = fullfile(baseOutputDir, [timestamp, '_errorTimeSeries']);
+    if ~exist(runOutputDir, 'dir')
+        mkdir(runOutputDir);
+    end
+
+    [~, matBaseName, matExt] = fileparts(cfg.errorTimeSeries.outputMat);
+    if isempty(matBaseName)
+        matBaseName = 'ping_error';
+    end
+    if isempty(matExt)
+        matExt = '.mat';
+    end
+
+    cfg_local.errorTimeSeries.outputDir = runOutputDir;
+    cfg_local.errorTimeSeries.outputMat = fullfile(runOutputDir, [matBaseName, matExt]);
+else
+    fprintf('[errorTimeSeries] 保存开关关闭，跳过输出目录创建。\n');
+end
+
 cfg = cfg_local;
 
 %% 4. 数据生成
 fprintf('[errorTimeSeries] 开始生成误差时间序列...\n');
 pingErrorTable = errorTimeSeries(cfg);
-fprintf('[errorTimeSeries] 数据生成完成，输出目录：%s\n', cfg.errorTimeSeries.outputDir);
+if shouldSaveArtifacts
+    fprintf('[errorTimeSeries] 数据生成完成，输出目录：%s\n', cfg.errorTimeSeries.outputDir);
+else
+    fprintf('[errorTimeSeries] 数据生成完成，当前配置未保存结果到目录。\n');
+end
 
 %% 5. 可视化与导出
 fprintf('[errorTimeSeries] %s开始绘制误差时间序列曲线...\n', newline);
@@ -205,7 +216,7 @@ function plotErrorTimeSeriesFigure(dataTable, cfg)
 
     applyGlobalFigureStyleLocal(fig, cfg.global.visual, 'errorTimeSeries');
 
-    if etsCfg.savePlot && cfg.global.save.figures
+    if etsCfg.saveData && cfg.global.save.figures
         fprintf('[errorTimeSeries] 正在保存图像，请勿关闭图窗...\n');
         baseName = fullfile(etsCfg.outputDir, 'error_time_series');
         exportFigureLocal(fig, baseName, cfg.global.save);

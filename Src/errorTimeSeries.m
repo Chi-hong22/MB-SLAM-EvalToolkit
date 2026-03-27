@@ -79,9 +79,13 @@ function pingErrorTable = errorTimeSeries(cfg)
     combinedTable = vertcat(tables{:});
     combinedTable = sortrows(combinedTable, {'dataset', 'metric', 'ping_idx'});
 
-    fprintf('[errorTimeSeries] 已生成 %d 条 ping 误差样本，开始保存 MAT 文件...\n', height(combinedTable));
-    savePingErrorMat(combinedTable, etsCfg);
-    fprintf('[errorTimeSeries] MAT 保存完成。\n');
+    if etsCfg.saveData && cfg.global.save.figures
+        fprintf('[errorTimeSeries] 已生成 %d 条 ping 误差样本，开始保存 MAT 文件...\n', height(combinedTable));
+        savePingErrorMat(combinedTable, etsCfg);
+        fprintf('[errorTimeSeries] MAT 保存完成。\n');
+    else
+        fprintf('[errorTimeSeries] 已生成 %d 条 ping 误差样本，按配置跳过 MAT 保存。\n', height(combinedTable));
+    end
 
     pingErrorTable = combinedTable;
 end
@@ -224,7 +228,7 @@ function savePingErrorMat(dataTable, etsCfg)
 end
 
 function validateErrorTimeSeriesConfig(etsCfg)
-    requiredFields = {'enable', 'pingDt', 'outputDir', 'outputMat', 'savePlot', 'comb', 'nesp', 'submapExtList'};
+    requiredFields = {'enable', 'pingDt', 'outputDir', 'outputMat', 'saveData', 'comb', 'nesp', 'submapExtList'};
     for i = 1:numel(requiredFields)
         if ~isfield(etsCfg, requiredFields{i})
             error('[errorTimeSeries] 缺少配置字段: %s', requiredFields{i});

@@ -111,14 +111,19 @@ function cfg = config()
     cfg.errorTimeSeries.pingDt    = 0.003;
     cfg.errorTimeSeries.outputDir = 'Results/ErrorTimeSeries';
     cfg.errorTimeSeries.outputMat = fullfile(cfg.errorTimeSeries.outputDir, 'ping_error.mat');
-    cfg.errorTimeSeries.savePlot  = true;
+    cfg.errorTimeSeries.saveData  = false;
     cfg.errorTimeSeries.truncateToCommonRange = true;
 
+    % cfg.errorTimeSeries.comb = struct( ...
+    %     'originalPath', 'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_original.txt', ...
+    %     'insPath',      'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_corrupted.txt', ...
+    %     'slamPath',     'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_optimized.txt', ...
+    %     'submapDir',    'Data/250911_Comb_noINS/submaps');
     cfg.errorTimeSeries.comb = struct( ...
-        'originalPath', 'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_original.txt', ...
-        'insPath',      'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_corrupted.txt', ...
-        'slamPath',     'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_optimized.txt', ...
-        'submapDir',    'Data/250911_Comb_noINS/submaps');
+        'originalPath', 'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_original.txt', ...
+        'insPath',      'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_corrupted.txt', ...
+        'slamPath',     'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_optimized.txt', ...
+        'submapDir',    'Data/260326_Ling_noINS/submaps');
 
     cfg.errorTimeSeries.nesp = struct( ...
         'originalPath', 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_original.txt', ...
@@ -194,8 +199,8 @@ function cfg = config()
     cfg.ape.paths.nesp_slam = 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_optimized.txt';
     cfg.ape.paths.nesp_gt   = 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_original.txt';
 
-    cfg.ape.paths.comb_slam = 'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_optimized.txt';
-    cfg.ape.paths.comb_gt   = 'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_original.txt';
+    cfg.ape.paths.comb_slam = 'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_optimized.txt';
+    cfg.ape.paths.comb_gt   = 'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_original.txt';
 
     % APE 输出路径配置
     cfg.ape.paths.output_visualization = 'Results/APE/APE_visualization';
@@ -204,7 +209,7 @@ function cfg = config()
     cfg.ape.options = struct();
     cfg.ape.options.enable_alignment = true;
     cfg.ape.plot = struct();
-    cfg.ape.plot.legend_labels = {'NESP', 'Comb'};
+    cfg.ape.plot.legend_labels = {'NESP', 'Ling'};
 
     % 保存
     cfg.ape.save = struct();
@@ -216,10 +221,14 @@ function cfg = config()
     % 路径
     cfg.cbee.paths = struct();
 
-    cfg.cbee.paths.gt_pcd_dir       = 'Data/251111_NESP_noINS/submaps';
-    cfg.cbee.paths.poses_original   = 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_original.txt';
-    cfg.cbee.paths.poses_optimized  = 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_optimized.txt';
-    cfg.cbee.paths.poses_corrupted  = 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_corrupted.txt';
+    % cfg.cbee.paths.gt_pcd_dir       = 'Data/251111_NESP_noINS/submaps';
+    % cfg.cbee.paths.poses_original   = 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_original.txt';
+    % cfg.cbee.paths.poses_optimized  = 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_optimized.txt';
+    % cfg.cbee.paths.poses_corrupted  = 'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_corrupted.txt';
+    cfg.cbee.paths.gt_pcd_dir       = 'Data/260326_Ling_noINS/submaps';
+    cfg.cbee.paths.poses_original   = 'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_original.txt';
+    cfg.cbee.paths.poses_optimized  = 'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_optimized.txt';
+    cfg.cbee.paths.poses_corrupted  = 'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_corrupted.txt';
 
 
     % CBEE 输出路径配置
