@@ -1,9 +1,12 @@
 %% main_errorTimeSeries - 离线误差时间序列入口脚本
 %
 % 功能描述：
-%   批量加载 config.m 中 Comb / NESP 轨迹与子地图配置，校验输入路径，
+%   加载 config.m 中 reference / benchmark 轨迹与子地图配置，动态校验输入路径，
 %   生成带时间戳的结果目录，调用 errorTimeSeries(cfg) 计算 ping-level 误差，
 %   并在脚本内置的可视化函数中绘制/保存时间序列曲线。
+%
+%   支持 1 个 reference 数据集 + 多个 benchmark 数据集 + 1 条可配置 INS 曲线；
+%   新增 benchmark 只需修改 config.m，无需修改本脚本。
 %
 % 作者信息：
 %   作者：Chihong（游子昂）
@@ -11,11 +14,14 @@
 %   单位：哈尔滨工程大学
 %
 % 版本信息：
-%   当前版本：v1.0
+%   当前版本：v2.0
 %   创建日期：251118
-%   最后修改：251118
+%   最后修改：260327
 %
 % 版本历史：
+%   v2.0 (260327) - 泛化重构
+%       + 动态路径校验，覆盖 reference / benchmark / INS 来源
+%       + 绘图逻辑改为遍历 vis.metricOrder + vis.curves 列表，不再写死曲线名
 %   v1.0 (251118) - 首次发布
 %       + 新增时间戳输出目录与 MAT/图像统一保存流程
 %       + 集成可配置的横轴截断与图例/坐标风格
@@ -29,7 +35,7 @@
 %       - error_time_series.<fmt> 图像
 %
 % 注意事项：
-%   1. 运行前需在 config.m 中配置 Comb/NESP 轨迹与子地图路径。
+%   1. 运行前需在 config.m 中配置 referenceDataset / benchmarkDatasets / ins。
 %   2. 若某数据集缺少指定轨迹/目录将直接报错终止。
 %   3. 可通过 cfg.errorTimeSeries.truncateToCommonRange 控制横轴截断。
 %
@@ -54,29 +60,33 @@ end
 %% 2. 路径校验
 fprintf('[errorTimeSeries] 开始校验输入路径...\n');
 
-paths_to_check = {
-    'Comb poses_original', cfg.errorTimeSeries.comb.originalPath, true
-    'Comb poses_corrupted', cfg.errorTimeSeries.comb.insPath, true
-    'Comb poses_optimized', cfg.errorTimeSeries.comb.slamPath, true
-    'Comb submaps dir', cfg.errorTimeSeries.comb.submapDir, false
-    'NESP poses_original', cfg.errorTimeSeries.nesp.originalPath, true
-    'NESP poses_optimized', cfg.errorTimeSeries.nesp.slamPath, true
-    'NESP submaps dir', cfg.errorTimeSeries.nesp.submapDir, false
-};
+etsCfg = cfg.errorTimeSeries;
 
-for idx = 1:size(paths_to_check, 1)
-    label = paths_to_check{idx, 1};
-    current_path = paths_to_check{idx, 2};
-    is_file = paths_to_check{idx, 3};
+% 校验 reference 数据集
+checkPath(etsCfg.referenceDataset.originalPath, true,  sprintf('reference(%s) poses_original', etsCfg.referenceDataset.displayName));
+checkPath(etsCfg.referenceDataset.slamPath,     true,  sprintf('reference(%s) poses_optimized', etsCfg.referenceDataset.displayName));
+checkPath(etsCfg.referenceDataset.submapDir,    false, sprintf('reference(%s) submaps dir', etsCfg.referenceDataset.displayName));
 
-    if is_file
-        if ~isfile(current_path)
-            error('[errorTimeSeries] 未找到文件: %s (%s)', current_path, label);
+% 校验 benchmark 数据集
+for idx = 1:numel(etsCfg.benchmarkDatasets)
+    bm = etsCfg.benchmarkDatasets(idx);
+    checkPath(bm.originalPath, true,  sprintf('benchmark(%s) poses_original', bm.displayName));
+    checkPath(bm.slamPath,     true,  sprintf('benchmark(%s) poses_optimized', bm.displayName));
+    checkPath(bm.submapDir,    false, sprintf('benchmark(%s) submaps dir', bm.displayName));
+end
+
+% 校验 INS 来源路径（若启用）
+if etsCfg.ins.enable
+    allDs = [{etsCfg.referenceDataset}, num2cell(etsCfg.benchmarkDatasets)];
+    insSourceCfg = [];
+    for idx = 1:numel(allDs)
+        if strcmp(allDs{idx}.id, etsCfg.ins.sourceDatasetId)
+            insSourceCfg = allDs{idx};
+            break;
         end
-    else
-        if ~isfolder(current_path)
-            error('[errorTimeSeries] 未找到目录: %s (%s)', current_path, label);
-        end
+    end
+    if ~isempty(insSourceCfg)
+        checkPath(insSourceCfg.insPath, true, sprintf('INS 来源(%s) poses_corrupted', insSourceCfg.displayName));
     end
 end
 
@@ -134,7 +144,7 @@ function plotErrorTimeSeriesFigure(dataTable, cfg)
     visCfg = etsCfg.vis;
     truncateEnabled = isfield(etsCfg, 'truncateToCommonRange') && logical(etsCfg.truncateToCommonRange);
 
-    metricOrder = {'INS', 'Comb', 'NESP'};
+    metricOrder = visCfg.metricOrder;
     fig = figure('Name', 'Error Time Series');
     ax = gca;
     hold(ax, 'on');
@@ -144,37 +154,30 @@ function plotErrorTimeSeriesFigure(dataTable, cfg)
     commonMaxTime = [];
     if truncateEnabled
         metricMaxTimes = [];
-    end
-
-    % 预先统计各曲线可用的最大时间，便于截断
-    for i = 1:numel(metricOrder)
-        metricName = metricOrder{i};
-        if ~any(strcmp(dataTable.metric, metricName))
-            continue;
+        for i = 1:numel(metricOrder)
+            metricName = metricOrder{i};
+            metricRows = dataTable(strcmp(dataTable.metric, metricName), :);
+            if ~isempty(metricRows)
+                metricMaxTimes(end+1) = max(metricRows.time_s); %#ok<AGROW>
+            end
         end
-        if ~isfield(visCfg.curves, metricName)
-            continue;
+        if ~isempty(metricMaxTimes)
+            commonMaxTime = min(metricMaxTimes);
         end
-        metricRows = dataTable(strcmp(dataTable.metric, metricName), :);
-        if truncateEnabled && ~isempty(metricRows)
-            metricMaxTimes(end+1) = max(metricRows.time_s); %#ok<AGROW>
-        end
-    end
-
-    if truncateEnabled && exist('metricMaxTimes', 'var') && ~isempty(metricMaxTimes)
-        commonMaxTime = min(metricMaxTimes);
     end
 
     for i = 1:numel(metricOrder)
         metricName = metricOrder{i};
-        if ~any(strcmp(dataTable.metric, metricName))
-            continue;
-        end
-        if ~isfield(visCfg.curves, metricName)
-            continue;
-        end
-        curveCfg = visCfg.curves.(metricName);
         metricRows = dataTable(strcmp(dataTable.metric, metricName), :);
+        if isempty(metricRows)
+            continue;
+        end
+        curveCfg = findCurveStyle(visCfg.curves, metricName);
+        if isempty(curveCfg)
+            warning('errorTimeSeries:MissingCurveStyle', ...
+                'errorTimeSeries: 未找到曲线 "%s" 的样式配置，跳过绘制。', metricName);
+            continue;
+        end
         if truncateEnabled && ~isempty(commonMaxTime)
             metricRows = metricRows(metricRows.time_s <= commonMaxTime, :);
         end
@@ -220,6 +223,28 @@ function plotErrorTimeSeriesFigure(dataTable, cfg)
         fprintf('[errorTimeSeries] 正在保存图像，请勿关闭图窗...\n');
         baseName = fullfile(etsCfg.outputDir, 'error_time_series');
         exportFigureLocal(fig, baseName, cfg.global.save);
+    end
+end
+
+function curveCfg = findCurveStyle(curves, metricName)
+    for i = 1:numel(curves)
+        if strcmp(curves(i).metricName, metricName)
+            curveCfg = curves(i);
+            return;
+        end
+    end
+    curveCfg = [];
+end
+
+function checkPath(pathStr, isFile, label)
+    if isFile
+        if ~isfile(pathStr)
+            error('[errorTimeSeries] 未找到文件: %s (%s)', pathStr, label);
+        end
+    else
+        if ~isfolder(pathStr)
+            error('[errorTimeSeries] 未找到目录: %s (%s)', pathStr, label);
+        end
     end
 end
 
