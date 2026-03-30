@@ -151,19 +151,19 @@ function cfg = config()
 
     % 可视化配置
     cfg.errorTimeSeries.vis = struct();
-    cfg.errorTimeSeries.vis.metricOrder = {'INS', 'NESP', 'Comb', 'Ling'};
+    cfg.errorTimeSeries.vis.metricOrder = {'INS', 'Comb', 'Ling', 'NESP'};
     cfg.errorTimeSeries.vis.curves = [ ...
         struct('metricName', 'INS',  'color', cfg.global.visual.corrupted_color, 'lineStyle', cfg.global.visual.corrupted_line_style, 'lineWidth', cfg.global.visual.corrupted_line_width), ...
-        struct('metricName', 'NESP', 'color', cfg.global.visual.gt_color,        'lineStyle', cfg.global.visual.gt_line_style,        'lineWidth', cfg.global.visual.gt_line_width), ...
         struct('metricName', 'Comb', 'color', cfg.global.visual.optimized_color, 'lineStyle', cfg.global.visual.optimized_line_style, 'lineWidth', cfg.global.visual.optimized_line_width), ...
-        struct('metricName', 'Ling', 'color', [0.55, 0.20, 0.75],               'lineStyle', '-',                                   'lineWidth', cfg.global.visual.optimized_line_width) ...
+        struct('metricName', 'Ling', 'color', [0.55, 0.20, 0.75],               'lineStyle', '-',                                    'lineWidth', cfg.global.visual.optimized_line_width), ...
+        struct('metricName', 'NESP', 'color', cfg.global.visual.gt_color,        'lineStyle', cfg.global.visual.gt_line_style,        'lineWidth', cfg.global.visual.gt_line_width) ...
     ];
     cfg.errorTimeSeries.vis.axes = struct( ...
         'xlabel', 'Time (s)', ...
         'ylabel', 'Position Error (m)', ...
         'ylim',   []);
 
-%% === ate（ATE 模块） ===
+%% === ate（ATE 单数据集计算模块） ===
     cfg.ate = struct();
 
     % 输入与辅助参数
@@ -171,31 +171,53 @@ function cfg = config()
 
     % ATE 主流程输入文件夹与标准文件名
     % cfg.ate.paths.input_folder = 'Data\250911_Comb_noINS\Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5';
-    cfg.ate.paths.input_folder = 'Data\251111_NESP_noINS\NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6';
+    cfg.ate.paths.input_folder = 'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5';
 
     cfg.ate.paths.gt_file_name         = 'poses_original.txt';
     cfg.ate.paths.est_corrupted_name   = 'poses_corrupted.txt';
     cfg.ate.paths.est_optimized_name   = 'poses_optimized.txt';
-    
+
     % ATE 输出路径配置
     cfg.ate.paths.output_data = 'Results/ATE/ATE_data';
-    cfg.ate.paths.output_distributions = 'Results/ATE/ATE_distributions';
-    
+
     % 可视化/分析参数
     cfg.ate.histogram_bins = 50;
-
-    % ATE 分布（BoxViolin）输入
-    cfg.ate.paths.boxviolin_files      = {
-        'Data\250911_Comb_noINS\20251113_174602_ATE_data\ate_details_optimized.csv', ...
-        'Data\251111_NESP_noINS\20251113_174148_ATE_data\ate_details_optimized.csv'
-    };
-
-    % 标签/绘图辅助
-    cfg.ate.labels = {'Comb', 'NESP'};
 
     % 保存
     cfg.ate.save = struct();
     cfg.ate.save.enable = true;
+
+%% === ateViolin（ATE 多数据集分布对比模块） ===
+    % 支持任意数量 benchmark 数据集，每个数据集从轨迹文件直接计算 ATE，无需预先生成 CSV
+    cfg.ateViolin = struct();
+    cfg.ateViolin.outputDir = 'Results/ATE/ATE_distributions';
+
+    % benchmark 数据集列表（对比数据），顺序即为小提琴图横轴顺序
+    cfg.ateViolin.datasets = [ ...
+        struct( ...
+            'id',          'comb', ...
+            'displayName', 'Comb', ...
+            'gtPath',      'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_original.txt', ...
+            'slamPath',    'Data/250911_Comb_noINS/Comb_noINS_seed40_yaw_0.05_0.005rad_overlapcoverage_0.5/poses_optimized.txt'), ...
+        struct( ...
+            'id',          'ling', ...
+            'displayName', 'Ling', ...
+            'gtPath',      'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_original.txt', ...
+            'slamPath',    'Data/260326_Ling_noINS/Ling_noINS_seed40_yaw_0.04_0.005rad_overlap_coverage_0.5/poses_optimized.txt'), ...
+        struct( ...
+            'id',          'nesp', ...
+            'displayName', 'NESP', ...
+            'gtPath',      'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_original.txt', ...
+            'slamPath',    'Data/251111_NESP_noINS/NESP_noINS_seed20_yaw_0.05_0.005rad_overlap_coverage_0.6/poses_optimized.txt') ...
+    ];
+
+    % 可视化配置
+    cfg.ateViolin.vis = struct();
+    cfg.ateViolin.vis.colors = [];  % 空 = 使用 plotATEDistributions 内置色板
+
+    % 保存
+    cfg.ateViolin.save = struct();
+    cfg.ateViolin.save.enable = true;
 
 %% === ape（APE 模块） ===
     cfg.ape = struct();

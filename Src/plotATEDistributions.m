@@ -49,6 +49,7 @@ function fig_handles = plotATEDistributions(varargin)
     % =========================================================================
     parser = inputParser;
     parser.addParameter('files', {});
+    parser.addParameter('data', {});
     parser.addParameter('labels', {});
     parser.addParameter('column', 'ate_error');
     parser.addParameter('save', false);
@@ -67,44 +68,54 @@ function fig_handles = plotATEDistributions(varargin)
 
     %% 3. 数据加载与预处理
     % =========================================================================
-    if isempty(opt.files)
-        [file_names, path_name] = uigetfile({'*.txt;*.csv','ATE Files (*.txt, *.csv)'}, ...
-            'Select ATE Data Files', 'MultiSelect','on');
-        if ~iscell(file_names) && isequal(file_names,0), fig_handles = []; return; end
-        if ~iscell(file_names), file_names = {file_names}; end
-        opt.files = fullfile(path_name, file_names);
-    end
+    if ~isempty(opt.data)
+        % 直接使用传入的 error 向量数组，跳过文件加载
+        all_data = opt.data;
+        num_groups = numel(all_data);
+    else
+        if isempty(opt.files)
+            [file_names, path_name] = uigetfile({'*.txt;*.csv','ATE Files (*.txt, *.csv)'}, ...
+                'Select ATE Data Files', 'MultiSelect','on');
+            if ~iscell(file_names) && isequal(file_names,0), fig_handles = []; return; end
+            if ~iscell(file_names), file_names = {file_names}; end
+            opt.files = fullfile(path_name, file_names);
+        end
 
-    num_groups = length(opt.files);
-    all_data = cell(1, num_groups);
-    
-    for i = 1:num_groups
-        try
-            read_opts = detectImportOptions(opt.files{i});
-            var_names = lower(read_opts.VariableNames);
-            
-            col_idx = find(strcmp(var_names, lower(opt.column)), 1);
-            if isempty(col_idx)
-                col_idx = find(contains(var_names, 'ate'), 1);
-            end
-            if isempty(col_idx)
-                var_types = read_opts.VariableTypes;
-                col_idx = find(strcmp(var_types, 'double'), 1, 'first');
-            end
+        num_groups = length(opt.files);
+        all_data = cell(1, num_groups);
 
-            read_opts.SelectedVariableNames = read_opts.VariableNames(col_idx);
-            tbl = readtable(opt.files{i}, read_opts);
-            all_data{i} = tbl{:,1};
-        catch E
-            warning('Failed to read file "%s": %s', opt.files{i}, E.message);
-            all_data{i} = [];
+        for i = 1:num_groups
+            try
+                read_opts = detectImportOptions(opt.files{i});
+                var_names = lower(read_opts.VariableNames);
+
+                col_idx = find(strcmp(var_names, lower(opt.column)), 1);
+                if isempty(col_idx)
+                    col_idx = find(contains(var_names, 'ate'), 1);
+                end
+                if isempty(col_idx)
+                    var_types = read_opts.VariableTypes;
+                    col_idx = find(strcmp(var_types, 'double'), 1, 'first');
+                end
+
+                read_opts.SelectedVariableNames = read_opts.VariableNames(col_idx);
+                tbl = readtable(opt.files{i}, read_opts);
+                all_data{i} = tbl{:,1};
+            catch E
+                warning('Failed to read file "%s": %s', opt.files{i}, E.message);
+                all_data{i} = [];
+            end
         end
     end
 
     % 处理标签
     labels = opt.labels;
     if isempty(labels) || length(labels) ~= num_groups
-        [~, default_labels] = cellfun(@fileparts, opt.files, 'UniformOutput', false);
+        if ~isempty(opt.files)
+            [~, default_labels] = cellfun(@fileparts, opt.files, 'UniformOutput', false);
+        else
+            default_labels = arrayfun(@(i) sprintf('Group%d', i), 1:num_groups, 'UniformOutput', false);
+        end
         prompt = cell(1, num_groups);
         for i=1:num_groups
             prompt{i} = sprintf('Label for %s:', default_labels{i});

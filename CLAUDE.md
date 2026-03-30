@@ -40,9 +40,12 @@ matlab -batch "addpath(genpath('Src')); addpath('Test'); test_computeRmsConsiste
 
 ## Module-specific hints
 
-- ATE / APE: `main_calculateATE.m`, `main_plotAPE.m`, and `main_plotBoxViolin.m` sit on top of `readTrajectory.m`, `alignAndComputeATE.m`, `plotTrajectories.m`, `plotATEData.m`, `plotAPEComparison.m`, and `plotATEDistributions.m`.
+- ATE has two separate flows:
+  1. **Single-dataset ATE** (`main_calculateATE.m`): configured via `cfg.ate`. Reads one `input_folder`, computes ATE for corrupted/optimized trajectories, saves per-run CSV + figures to `Results/ATE/ATE_data`.
+  2. **Multi-dataset violin comparison** (`main_plotBoxViolin.m`): configured via `cfg.ateViolin`. Reads a `datasets` struct array (each with `id`/`displayName`/`gtPath`/`slamPath`), computes ATE on the fly from raw trajectories (no pre-computed CSV needed), then calls `plotATEDistributions`. Adding a new dataset only requires a config change. Dataset order in the array determines the x-axis order of the violin plot. `plotATEDistributions.m` accepts either `'files'` (CSV paths) or `'data'` (cell array of error vectors).
+- APE: `main_plotAPE.m` sits on top of `plotAPEComparison.m`.
 - CBEE: `main_evaluateCBEE.m` is the heaviest workflow. Read it together with `loadAllSubmaps.m`, `generateOptimizedSubmaps.m`, `buildCbeeErrorGrid.m`, `computeRmsConsistencyError.m`, and `visualizeSubmaps.m` before editing.
-- Error time series: `errorTimeSeries.m` expands submap-level XY errors into ping-level rows using submap ping counts; `main_errorTimeSeries.m` handles validation, output directories, plotting, and export.
+- Error time series: supports 1 reference dataset + multiple benchmark datasets + 1 configurable INS curve. Configured via referenceDataset, benchmarkDatasets (struct array), and ins.sourceDatasetId in config.m. Adding a new benchmark only requires config changes, no code edits. errorTimeSeries.m loops over all datasets; main_errorTimeSeries.m handles dynamic path validation and plotting driven by vis.metricOrder + vis.curves list. vis.curves is a struct array (not struct fields). NOTE: errorTimeSeries and APE share the same error logic (XY positional error, slam vs original), but differ in calculation method (submap-level expanded to ping-level vs per-pose) and x-axis (pseudo time via pingDt vs pose index). APE calculation is currently not needed and should not be added.
 - Loop closures: `main_plotLoopClosures.m` loads one pose file and one `loop_closures.txt`; `plotLoopClosures.m` converts loop records to graph edges and renders odometry edges plus loop edges in XY.
 
 ## Testing notes
