@@ -493,7 +493,14 @@ if (isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'save_CBEE_data_resu
     else
         colormap(parula);
     end
+    
+    % 固定CBEE误差图的颜色显示范围，便于不同实验结果直接横向比较。
+    % 超出[0, 5.5]范围的误差值会按端点颜色显示，不再随当前数据自动缩放。
+    caxis([0, 5.5]);
+
     cb = colorbar; cb.Label.String = 'CBEE (m)';
+    % 刻度按1 m分隔显示到5，保留5.5的颜色范围上限但不单独显示终点刻度。
+    cb.Ticks = 0:1:5;
     cb.Label.FontSize = cb_fs; cb.Label.FontName = gv.font_name;
 
     % === 手操微调布局 === [左边距 底边距 宽度 高度]
@@ -511,6 +518,36 @@ if (isfield(cfg.cbee,'options') && isfield(cfg.cbee.options,'save_CBEE_data_resu
     xlabel('X (m)', 'FontName', gv.font_name, 'FontSize', axis_fs);
     ylabel('Y (m)', 'FontName', gv.font_name, 'FontSize', axis_fs);
     box('off');  % 不显示坐标轴外框
+
+    % *****在主图右上角叠加RMS文本，使用白字和极轻描边以兼顾可读性与不遮挡细节******
+    rms_text = sprintf('RMS=%.4f', rms_result.rms_value);
+    rms_font_size = max(cb_fs - 6, 10);
+    x_span = diff(x_range);
+    y_span = diff(y_range);
+    rms_x = x_range(2) - 0.03 * x_span;
+    rms_y = y_range(2) - 0.03 * y_span;
+    stroke_dx = 0.004 * x_span;
+    stroke_dy = 0.004 * y_span;
+    stroke_offsets = [-stroke_dx, 0; stroke_dx, 0; 0, -stroke_dy; 0, stroke_dy];
+    for idx = 1:size(stroke_offsets, 1)
+        text(rms_x + stroke_offsets(idx, 1), rms_y + stroke_offsets(idx, 2), rms_text, ...
+             'Color', [0.15, 0.15, 0.15], ...
+             'FontName', gv.font_name, ...
+             'FontSize', rms_font_size, ...
+             'FontWeight', 'normal', ...
+             'HorizontalAlignment', 'right', ...
+             'VerticalAlignment', 'top', ...
+             'Clipping', 'on');
+    end
+    text(rms_x, rms_y, rms_text, ...
+         'Color',  [255,  255,  255]/255, ...
+         'FontName', gv.font_name, ...
+         'FontSize', rms_font_size, ...
+         'FontWeight', 'normal', ...
+         'HorizontalAlignment', 'right', ...
+         'VerticalAlignment', 'top', ...
+         'Clipping', 'on');
+    % ********************=================================**********************
 
     % 终端输出统计信息（替代图内文本框）
     fprintf('\n[CBEE] 热力图统计数据\n');

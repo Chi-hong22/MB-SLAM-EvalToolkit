@@ -17,14 +17,14 @@ function fig_handles = plotATEDistributions(varargin)
     % =========================================================================
     COLOR_A_FILL  = [179, 214, 242]/255;  % 浅蓝 rgb(179,214,242)
     COLOR_A_EDGE  = [ 51, 115, 179]/255;  % 深蓝 rgb(51,115,179)
-    COLOR_B_FILL  = [245, 179, 179]/255;  % 浅红 rgb(245,179,179)
-    COLOR_B_EDGE  = [191,  64,  64]/255;  % 深红 rgb(191,64,64)
+    COLOR_B_FILL  = [209, 194, 230]/255;  % 浅紫 rgb(209,194,230)
+    COLOR_B_EDGE  = [128,  90, 179]/255;  % 深紫 rgb(128,90,179)
     COLOR_C_FILL  = [187, 219, 179]/255;  % 浅绿 rgb(187,219,179)
     COLOR_C_EDGE  = [ 64, 153,  90]/255;  % 深绿 rgb(64,153,90)
-    COLOR_D_FILL  = [209, 194, 230]/255;  % 浅紫 rgb(209,194,230)
-    COLOR_D_EDGE  = [128,  90, 179]/255;  % 深紫 rgb(128,90,179)
-    COLOR_E_FILL  = [250, 204, 153]/255;  % 浅橙 rgb(250,204,153)
-    COLOR_E_EDGE  = [217, 128,  38]/255;  % 深橙 rgb(217,128,38)
+    COLOR_D_FILL  = [250, 204, 153]/255;  % 浅橙 rgb(250,204,153)
+    COLOR_D_EDGE  = [217, 128,  38]/255;  % 深橙 rgb(217,128,38)
+    COLOR_E_FILL  = [245, 179, 179]/255;  % 浅红 rgb(245,179,179)
+    COLOR_E_EDGE  = [191,  64,  64]/255;  % 深红 rgb(191,64,64)
 
     fill_colors = [COLOR_A_FILL; COLOR_B_FILL; COLOR_C_FILL; COLOR_D_FILL; COLOR_E_FILL];
     edge_colors = [COLOR_A_EDGE; COLOR_B_EDGE; COLOR_C_EDGE; COLOR_D_EDGE; COLOR_E_EDGE];

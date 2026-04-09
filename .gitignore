@@ -6,8 +6,6 @@
 /Docs/todo/
 Docs/superpowers/
 .github/
-.qoder/
-.qoder.yml
 .cursor/
 .claude/
 # Ignore all contents of the Data directory
